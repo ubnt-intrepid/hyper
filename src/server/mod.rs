@@ -105,7 +105,7 @@ impl fmt::Debug for AddrIncoming {
 
 // ===== impl Http =====
 
-impl<B: AsRef<[u8]> + Send + 'static> Http<B> {
+impl<B: AsRef<[u8]> + 'static> Http<B> {
     /// Creates a new instance of the HTTP protocol, ready to spawn a server or
     /// start accepting connections.
     pub fn new() -> Http<B> {
@@ -344,7 +344,8 @@ impl<S, B> Server<S, B>
     where S: NewService<Request = Request<Body>, Response = Response<B>, Error = ::Error> + Send + 'static,
           <S as NewService>::Instance: Send,
           <<S as NewService>::Instance as Service>::Future: Send,
-          B: Entity<Error=::Error> + 'static,
+          B: Entity<Error=::Error> + Send + 'static,
+          B::Data: Send,
 {
     /// Returns the local address that this server is bound to.
     pub fn local_addr(&self) -> ::Result<SocketAddr> {

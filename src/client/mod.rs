@@ -100,7 +100,8 @@ impl<C, B> Client<C, B>
 where C: Connect<Error=io::Error> + Sync + 'static,
       C::Transport: 'static,
       C::Future: 'static,
-      B: Entity<Error=::Error> + 'static,
+      B: Entity<Error=::Error> + Send + 'static,
+      B::Data: Send,
 {
 
     /// Send a `GET` request to the supplied `Uri`.
@@ -281,7 +282,8 @@ where C: Connect<Error=io::Error> + Sync + 'static,
 impl<C, B> Service for Client<C, B>
 where C: Connect<Error=io::Error> + 'static,
       C::Future: 'static,
-      B: Entity<Error=::Error> + 'static,
+      B: Entity<Error=::Error> + Send + 'static,
+      B::Data: Send,
 {
     type Request = Request<B>;
     type Response = Response<Body>;
@@ -343,7 +345,8 @@ impl<C, B> Future for RetryableSendRequest<C, B>
 where
     C: Connect<Error=io::Error> + 'static,
     C::Future: 'static,
-    B: Entity<Error=::Error> + 'static,
+    B: Entity<Error=::Error> + Send + 'static,
+    B::Data: Send,
 {
     type Item = Response<Body>;
     type Error = ::Error;
@@ -554,7 +557,8 @@ impl<C, B> Config<C, B>
 where C: Connect<Error=io::Error>,
       C::Transport: 'static,
       C::Future: 'static,
-      B: Entity<Error=::Error>,
+      B: Entity<Error=::Error> + Send,
+      B::Data: Send,
 {
     /// Construct the Client with this configuration.
     #[inline]
@@ -575,7 +579,9 @@ where C: Connect<Error=io::Error>,
 }
 
 impl<B> Config<UseDefaultConnector, B>
-where B: Entity<Error=::Error>,
+where
+    B: Entity<Error=::Error> + Send,
+    B::Data: Send,
 {
     /// Construct the Client with this configuration.
     #[inline]
