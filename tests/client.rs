@@ -23,15 +23,15 @@ use tokio::runtime::Runtime;
 use tokio::net::{ConnectFuture, TcpStream};
 
 fn s(buf: &[u8]) -> &str {
-    ::std::str::from_utf8(buf).unwrap()
+    ::std::str::from_utf8(buf).expect("from_utf8")
 }
 
 fn tcp_connect(addr: &SocketAddr, handle: &Handle) -> ConnectFuture {
     let builder = match addr {
-        &SocketAddr::V4(_) => TcpBuilder::new_v4().unwrap(),
-        &SocketAddr::V6(_) => TcpBuilder::new_v6().unwrap()
+        &SocketAddr::V4(_) => TcpBuilder::new_v4().expect("tcp new_v4"),
+        &SocketAddr::V6(_) => TcpBuilder::new_v6().expect("tcp new_v6"),
     };
-    TcpStream::connect_std(builder.to_tcp_stream().unwrap(), addr, handle)
+    TcpStream::connect_std(builder.to_tcp_stream().expect("to_tcp_stream"), addr, handle)
 }
 
 macro_rules! test {
@@ -92,7 +92,7 @@ macro_rules! test {
         #[test]
         fn $name() {
             let _ = pretty_env_logger::try_init();
-            let runtime = Runtime::new().unwrap();
+            let runtime = Runtime::new().expect("runtime new");
 
             let res = test! {
                 INNER;
@@ -108,7 +108,7 @@ macro_rules! test {
                         url: $client_url,
                         headers: { $($request_header_name => $request_header_val,)* },
                         body: $request_body,
-            }.unwrap();
+            }.expect("test");
 
 
             assert_eq!(res.status(), StatusCode::$client_status);
@@ -116,7 +116,12 @@ macro_rules! test {
                 assert_eq!(res.headers()[$response_header_name], $response_header_val);
             )*
 
-            let body = res.into_body().into_stream().concat2().wait().unwrap();
+            let body = res
+                .into_body()
+                .into_stream()
+                .concat2()
+                .wait()
+                .expect("body concat wait");
 
             let expected_res_body = Option::<&[u8]>::from($response_body)
                 .unwrap_or_default();
@@ -140,7 +145,7 @@ macro_rules! test {
         #[test]
         fn $name() {
             let _ = pretty_env_logger::try_init();
-            let runtime = Runtime::new().unwrap();
+            let runtime = Runtime::new().expect("runtime new");
 
             let err = test! {
                 INNER;
@@ -158,7 +163,7 @@ macro_rules! test {
                         body: $request_body,
             }.unwrap_err();
             if !$err(&err) {
-                panic!("unexpected error: {:?}", err)
+                panic!("expected error, unexpected variant: {:?}", err)
             }
         }
     );
@@ -178,8 +183,8 @@ macro_rules! test {
                 headers: { $($request_header_name:expr => $request_header_val:expr,)* },
                 body: $request_body:expr,
     ) => ({
-        let server = TcpListener::bind("127.0.0.1:0").unwrap();
-        let addr = server.local_addr().unwrap();
+        let server = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = server.local_addr().expect("local_addr");
         let runtime = $runtime;
 
         let mut config = Client::configure();
@@ -201,7 +206,7 @@ macro_rules! test {
             .header($request_header_name, $request_header_val)
         )*
             .body(body)
-            .unwrap();
+            .expect("request builder");
 
         let res = client.request(req);
 
@@ -210,9 +215,9 @@ macro_rules! test {
         let thread = thread::Builder::new()
             .name(format!("tcp-server<{}>", stringify!($name)));
         thread.spawn(move || {
-            let mut inc = server.accept().unwrap().0;
-            inc.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-            inc.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+            let mut inc = server.accept().expect("accept").0;
+            inc.set_read_timeout(Some(Duration::from_secs(5))).expect("set_read_timeout");
+            inc.set_write_timeout(Some(Duration::from_secs(5))).expect("set_write_timeout");
             let expected = format!($server_expected, addr=addr);
             let mut buf = [0; 4096];
             let mut n = 0;
@@ -224,9 +229,9 @@ macro_rules! test {
             }
             assert_eq!(s(&buf[..n]), expected);
 
-            inc.write_all($server_reply.as_ref()).unwrap();
+            inc.write_all($server_reply.as_ref()).expect("write_all");
             let _ = tx.send(());
-        }).unwrap();
+        }).expect("thread spawn");
 
         let rx = rx.map_err(|_| hyper::Error::Io(io::Error::new(io::ErrorKind::Other, "thread panicked")));
 
