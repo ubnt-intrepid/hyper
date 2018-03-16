@@ -140,8 +140,25 @@ fn connect(addr: &SocketAddr, handle: &Handle) -> io::Result<ConnectFuture> {
         &SocketAddr::V4(_) => TcpBuilder::new_v4()?,
         &SocketAddr::V6(_) => TcpBuilder::new_v6()?,
     };
-    builder.bind(addr)?;
+
+    if cfg!(windows) {
+        bind_windows(&builder, addr)?;
+    }
+
     Ok(TcpStream::connect_std(builder.to_tcp_stream()?, addr, handle))
+}
+
+#[cfg(windows)]
+fn bind_windows(builder: &TcpBuilder, other: &SocketAddr) -> io::Result<()> {
+    let any: SocketAddr = match other {
+        &SocketAddr::V4(_) => {
+            ([0, 0, 0, 0], 0).into()
+        },
+        &SocketAddr::V6(_) => {
+            ([0, 0, 0, 0, 0, 0, 0, 0], 0).into()
+        }
+    };
+    builder.bind(any).map(|_| ())
 }
 
 /// A connector for the `http` scheme.

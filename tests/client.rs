@@ -17,7 +17,6 @@ use hyper::{Body, Client, Method, Request, StatusCode};
 
 use futures::{Future, Stream};
 use futures::sync::oneshot;
-use net2::TcpBuilder;
 use tokio::reactor::Handle;
 use tokio::runtime::Runtime;
 use tokio::net::{ConnectFuture, TcpStream};
@@ -26,13 +25,8 @@ fn s(buf: &[u8]) -> &str {
     ::std::str::from_utf8(buf).expect("from_utf8")
 }
 
-fn tcp_connect(addr: &SocketAddr, handle: &Handle) -> ConnectFuture {
-    let builder = match addr {
-        &SocketAddr::V4(_) => TcpBuilder::new_v4().expect("tcp new_v4"),
-        &SocketAddr::V6(_) => TcpBuilder::new_v6().expect("tcp new_v6"),
-    };
-    builder.bind(addr).expect("tcp bind");
-    TcpStream::connect_std(builder.to_tcp_stream().expect("to_tcp_stream"), addr, handle)
+fn tcp_connect(addr: &SocketAddr) -> ConnectFuture {
+    TcpStream::connect(addr)
 }
 
 macro_rules! test {
@@ -1428,7 +1422,6 @@ mod conn {
         let server = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = server.local_addr().unwrap();
         let mut runtime = Runtime::new().unwrap();
-        let handle = runtime.handle().clone();
 
         let (tx1, rx1) = oneshot::channel();
 
@@ -1449,7 +1442,7 @@ mod conn {
             let _ = tx1.send(());
         });
 
-        let tcp = tcp_connect(&addr, &handle).wait().unwrap();
+        let tcp = tcp_connect(&addr).wait().unwrap();
 
         let (mut client, conn) = conn::handshake(tcp).wait().unwrap();
 
@@ -1475,7 +1468,6 @@ mod conn {
         let server = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = server.local_addr().unwrap();
         let mut runtime = Runtime::new().unwrap();
-        let handle = runtime.handle().clone();
 
         let (tx1, rx1) = oneshot::channel();
 
@@ -1495,7 +1487,7 @@ mod conn {
             let _ = tx1.send(());
         });
 
-        let tcp = tcp_connect(&addr, &handle).wait().unwrap();
+        let tcp = tcp_connect(&addr).wait().unwrap();
 
         let (mut client, conn) = conn::handshake(tcp).wait().unwrap();
 
@@ -1522,7 +1514,6 @@ mod conn {
         let server = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = server.local_addr().unwrap();
         let mut runtime = Runtime::new().unwrap();
-        let handle = runtime.handle().clone();
 
         let (tx1, rx1) = oneshot::channel();
 
@@ -1537,7 +1528,7 @@ mod conn {
             let _ = tx1.send(());
         });
 
-        let tcp = tcp_connect(&addr, &handle).wait().unwrap();
+        let tcp = tcp_connect(&addr).wait().unwrap();
 
         let (mut client, conn) = conn::handshake(tcp).wait().unwrap();
 
@@ -1581,8 +1572,7 @@ mod conn {
 
         let server = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = server.local_addr().unwrap();
-        let runtime = Runtime::new().unwrap();
-        let handle = runtime.handle();
+        let _runtime = Runtime::new().unwrap();
 
         let (tx1, rx1) = oneshot::channel();
 
@@ -1605,7 +1595,7 @@ mod conn {
             sock.write_all(b"bar=foo").expect("write 2");
         });
 
-        let tcp = tcp_connect(&addr, &handle).wait().unwrap();
+        let tcp = tcp_connect(&addr).wait().unwrap();
 
         let io = DebugStream {
             tcp: tcp,
@@ -1662,8 +1652,7 @@ mod conn {
 
         let server = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = server.local_addr().unwrap();
-        let runtime = Runtime::new().unwrap();
-        let handle = runtime.handle();
+        let _runtime = Runtime::new().unwrap();
 
         let (tx1, rx1) = oneshot::channel();
 
@@ -1685,7 +1674,7 @@ mod conn {
             sock.write_all(b"bar=foo").expect("write 2");
         });
 
-        let tcp = tcp_connect(&addr, &handle).wait().unwrap();
+        let tcp = tcp_connect(&addr).wait().unwrap();
 
         let io = DebugStream {
             tcp: tcp,
