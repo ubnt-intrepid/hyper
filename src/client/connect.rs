@@ -143,7 +143,7 @@ fn connect(addr: &SocketAddr, handle: &Handle) -> io::Result<ConnectFuture> {
 
     if cfg!(windows) {
         // Windows requires a socket be bound before calling connect
-        let any: SocketAddr = match other {
+        let any: SocketAddr = match addr {
             &SocketAddr::V4(_) => {
                 ([0, 0, 0, 0], 0).into()
             },
