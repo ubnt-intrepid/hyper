@@ -31,6 +31,7 @@ fn tcp_connect(addr: &SocketAddr, handle: &Handle) -> ConnectFuture {
         &SocketAddr::V4(_) => TcpBuilder::new_v4().expect("tcp new_v4"),
         &SocketAddr::V6(_) => TcpBuilder::new_v6().expect("tcp new_v6"),
     };
+    builder.bind(addr).expect("tcp bind");
     TcpStream::connect_std(builder.to_tcp_stream().expect("to_tcp_stream"), addr, handle)
 }
 

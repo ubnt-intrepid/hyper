@@ -135,12 +135,13 @@ impl Connected {
     */
 }
 
-fn connect(addr: &SocketAddr, handle: &Handle) -> ConnectFuture {
+fn connect(addr: &SocketAddr, handle: &Handle) -> io::Result<ConnectFuture> {
     let builder = match addr {
-        &SocketAddr::V4(_) => TcpBuilder::new_v4().unwrap(),
-        &SocketAddr::V6(_) => TcpBuilder::new_v6().unwrap()
+        &SocketAddr::V4(_) => TcpBuilder::new_v4()?,
+        &SocketAddr::V6(_) => TcpBuilder::new_v6()?,
     };
-    TcpStream::connect_std(builder.to_tcp_stream().unwrap(), addr, handle)
+    builder.bind(addr)?;
+    Ok(TcpStream::connect_std(builder.to_tcp_stream()?, addr, handle))
 }
 
 /// A connector for the `http` scheme.
@@ -362,14 +363,14 @@ impl ConnectingTcp {
                         err = Some(e);
                         if let Some(addr) = self.addrs.next() {
                             debug!("connecting to {}", addr);
-                            *current = connect(&addr, handle);
+                            *current = connect(&addr, handle)?;
                             continue;
                         }
                     }
                 }
             } else if let Some(addr) = self.addrs.next() {
                 debug!("connecting to {}", addr);
-                self.current = Some(connect(&addr, handle));
+                self.current = Some(connect(&addr, handle)?);
                 continue;
             }
 
