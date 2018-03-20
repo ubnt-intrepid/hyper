@@ -2,7 +2,7 @@ use std::io;
 
 use bytes::Bytes;
 use futures::{Async, Future, Poll, Stream};
-use http::{Request, Response, StatusCode};
+use http::{Request, Response, StatusCode, Extensions};
 use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_service::Service;
 
@@ -30,6 +30,13 @@ pub trait Dispatch {
 pub struct Server<S: Service> {
     in_flight: Option<S::Future>,
     service: S,
+    extensions: Option<Extensions>,
+}
+
+impl<S: Service> Server<S> {
+    pub fn into_inner(self) -> Option<Extensions> {
+        self.extensions
+    }
 }
 
 pub struct Client<B> {
@@ -63,8 +70,9 @@ where
         self.conn.disable_keep_alive()
     }
 
-    pub fn into_inner(self) -> (I, Bytes) {
-        self.conn.into_inner()
+    pub fn into_inner(self) -> (I, Bytes, D) {
+        let (io, bytes) = self.conn.into_inner();
+        (io, bytes, self.dispatch)
     }
 
     /// The "Future" poll function. Runs this dispatcher until the
@@ -312,6 +320,7 @@ impl<S> Server<S> where S: Service {
         Server {
             in_flight: None,
             service: service,
+            extensions: None,
         }
     }
 }
@@ -345,6 +354,7 @@ where
             } else {
                 Some(body)
             };
+            self.extensions = Some(parts.extensions);
             Ok(Async::Ready(Some((head, body))))
         } else {
             unreachable!("poll_msg shouldn't be called if no inflight");
@@ -359,6 +369,7 @@ where
         *req.headers_mut() = msg.headers;
         *req.version_mut() = msg.version;
         self.in_flight = Some(self.service.call(req));
+        self.extensions = None;
         Ok(())
     }
 

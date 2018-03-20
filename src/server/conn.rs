@@ -12,6 +12,7 @@ use std::fmt;
 
 use bytes::Bytes;
 use futures::{Future, Poll};
+use http::Extensions;
 use tokio_io::{AsyncRead, AsyncWrite};
 
 use proto;
@@ -53,6 +54,8 @@ pub struct Parts<T> {
     /// You will want to check for any existing bytes if you plan to continue
     /// communicating on the IO object.
     pub read_buf: Bytes,
+    /// dummy
+    pub ext: Option<Extensions>,
     _inner: (),
 }
 
@@ -74,10 +77,12 @@ where S: Service<Request = Request<Body>, Response = Response<B>, Error = ::Erro
     /// that the connection is "done". Otherwise, it may not have finished
     /// flushing all necessary HTTP bytes.
     pub fn into_parts(self) -> Parts<I> {
-        let (io, read_buf) = self.conn.into_inner();
+        let (io, read_buf, dispatch) = self.conn.into_inner();
+        let ext = dispatch.into_inner();
         Parts {
             io: io,
             read_buf: read_buf,
+            ext: ext,
             _inner: (),
         }
     }
